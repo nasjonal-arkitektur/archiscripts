@@ -1,0 +1,16 @@
+/*
+ * Update property
+ */
+ 
+console.clear();
+console.log("Script starting...");
+
+var propName = window.prompt("Which property do you want to add or update for the selected objects?", "");
+if (propName) {
+	var propValue = window.prompt("Which value do you want to set for '"+propName+"' (leave empty to cancel)?", "");
+	if (propValue) {
+		$(selection).prop(propName, propValue);
+	}
+}
+
+console.log("Script completed.");

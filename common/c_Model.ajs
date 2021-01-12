@@ -1,0 +1,616 @@
+/*
+ * c_Model
+ */
+/*
+load(__DIR__ + "../common/Constants.ajs");
+load(__DIR__ + "../common/c_Concept.ajs");
+load(__DIR__ + "../common/c_Relation.ajs");
+load(__DIR__ + "../common/c_View.ajs");
+load(__DIR__ + "../common/c_Folder.ajs");
+*/
+
+var m_model = null;
+
+function cModel_SetName(model, name) {
+	
+	model.name = name;
+}
+
+
+function cModel_InitExistingFromFile(filePath) {
+
+	if (filePath == null)
+		filePath = window.promptOpenFile({ title: "Open Model", filterExtensions: [ "*.archimate" ] });
+
+	if(filePath != null) {
+		// Load the model and set as current model
+		$.model.load(filePath).setAsCurrent();
+		m_model = model;
+
+		m_model.openInUI();
+	}
+	
+	m_testThis = 2;
+	return m_model;
+}
+
+
+function cModel_InitExistingFromArchiObject(archiModel) {
+
+	m_model = archiModel;
+	
+	if (archiModel != null)
+		m_model.openInUI();
+	
+	return m_model;
+}
+
+
+function cModel_GetArchiModelObject() {
+	
+	return model;
+}
+
+
+function cModel_GetCurrentModelName() {
+	return model.name;
+}
+
+
+function cModel_GetRenderingRootPath() {	
+
+	var path = "";
+
+	if (const_option_antora)
+		path = model.prop(const_prop_antoraComponentsPath);	
+	else
+		path =  model.prop(const_prop_modelRenderingRootPath);
+	
+	return path;
+}
+
+
+function cModel_GetCurrentLanguage() {	
+	return model.prop(const_prop_current_language);
+}
+
+function cModel_GetDefaultLanguage() {
+	return model.prop(const_prop_default_language);
+}
+
+
+function cModel_IsValidLanguage(language) {	
+
+	var valid = false;
+
+	if (language === const_prop_language_value_no)
+		valid = true;
+	else if (language === const_prop_language_value_en)
+		valid = true;
+
+	return valid;
+	
+}
+
+function cModel_SetDefaultLanguage(language) {	
+
+	if (cModel_IsValidLanguage() )
+		model.prop(const_prop_current_language, language);
+	else {
+		console.log("Error: Invalid language '" + language + "'" + ".Exiting...");
+		exit();
+	}
+}
+
+function cModel_SetCurrentLanguage(language) {	
+
+	if (cModel_IsValidLanguage() )
+		model.prop(const_prop_current_language, language);
+	else {
+		console.log("Error: Invalid language '" + language + "'" + ".Exiting...");
+		exit();
+	}
+
+	
+	if (language === cModel_GetCurrentLanguage() )
+		return; // no change
+
+
+	// views
+	$("view").each(function(view) {
+
+		cView_SetLanguage(view, language);
+		
+    });
+	
+	// elements and relations
+
+    $("concept").each(function(concept) {
+		
+		cConcept_SetLanguage(concept, language);
+
+		
+    });
+	
+	
+	
+	
+	
+	
+}
+
+
+
+var cModel_GetDirectlySelectedElements = function() { // erik: moved to CSelecton?
+
+	var elements = $(selection).filter("element");
+	return elements;
+}
+
+var cModel_GetAllDirectlySelectedConcepts = function() {  // erik: moved to CSelecton?
+
+	// directly selected by multiple selection in folder or in view
+	
+	var concepts = $(selection).filter("concept"); // includes elements and relationships, BUT NOTE that "normal mouse window selection" will not include relation - you need to use CTRL(A)
+	return concepts;
+}
+
+var cModel_GetAllSelectedConcepts = function() { // erik: moved to CSelecton?
+
+	// Could be directly selected by multiple selection in folder or in view
+	// TODO: Could also be indirectly selected via parent view or folder !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+	var concepts = $(selection).filter("concept"); // includes elements and relationships
+	
+	return concepts; // erik: todo: test if these are the actual concepts only, or also the occurences?
+}
+
+
+
+var cModel_GetAllModelConcepts = function() {
+	return $("concept");
+}
+
+var cModel_GetAllModelElements = function() {
+	return $("element");
+}
+
+var cModel_GetAllModelRelationships = function() {
+	return $("relationship");
+}
+
+
+var cModel_GetElementsInSelectedViews = function() {
+
+	var elements = null;
+	
+	$(selection).filter("view").each(function(v) {
+		
+		if (elements == null) {
+			elements = $(v).children().filter("element");
+			//test TBD: elements = cView_GetElementsInView(v);
+		}
+		else {
+			elements.add ( $(v).children().filter("element") );
+			//test TBD: elements.add ( cView_GetElementsInView(v) );
+		}
+		
+	});
+	
+	return elements;
+}
+
+var cModel_GetSelectedView = function() { // also see...
+
+	var vus = $(selection).filter("view");
+	
+	console.log("vus.length = " + vus.length); 	
+	if (vus.length > 1)
+		return null;
+	if (vus.length < 1)
+		return null;
+	
+	return vus[0];
+}
+
+
+var cModel_FindAllModelElementsWithName = function(elementName) {
+
+    return $("element").filter(function(o) {
+        return ( (o.name == elementName) );
+    });
+}
+	
+function cModel_GetElementWithId(id) {
+	
+   var elms =  $("element").filter(function(o) {
+        return ( (o.id == id) );
+    });
+	
+	if (elms.size() < 1) {
+		
+		console.log("cModel_GetElementWithId: No elements with given id = " + id + "! Exiting!");
+		exit();
+	}
+	else if (elms.size() > 1) {
+		window.alert("cModel_GetElementWithId: More than one element selected");
+		exit();
+	}
+	
+		
+	var elm = elms.first();
+	//console.log("cModel_GetElementWithId: Element name  = " + elm.name);
+	return elm;
+
+}
+
+function cModel_GetElementWithName(name) {
+	
+	var elms =  $("element").filter(function(o) {
+        return ( (o.name == name)  );
+    });
+
+	if (elms.size() < 1) {
+		
+		console.log("cModel_GetElementWithName: No elements with given id = " + id + "! Exiting!");
+		exit();
+	}
+	else if (elms.size() > 1) {
+		window.alert("cModel_GetElementWithName: More than one element selected");
+		exit();
+	}
+	
+	var elm = elms.first();
+	//console.log("cModel_GetElementWithId: Element name  = " + elm.name);
+	return elm;
+			
+	
+}
+
+function cModel_GetConceptWithId(id) {
+	
+   var elms =  $("concept").filter(function(o) {
+        return ( (o.id == id) );
+    });
+	
+	if (elms.size() < 1) {
+		
+		console.log("cModel_GetConceptWithId: No elements with given id = " + id + "! Exiting!");
+		exit();
+	}
+	else if (elms.size() > 1) {
+		window.alert("cModel_GetConceptWithId: More than one element selected");
+		exit();
+	}
+	
+		
+	var elm = elms.first();
+	//console.log("cModel_GetElementWithId: Element name  = " + elm.name);
+	return elm;
+
+}
+
+function cModel_GetConceptWithName(name) {
+	
+	var elms =  $("concept").filter(function(o) {
+        return ( (o.name == name)  );
+    });
+
+	if (elms.size() < 1) {
+		
+		console.log("cModel_GetConceptWithName: No elements with given id = " + id + "! Exiting!");
+		exit();
+	}
+	else if (elms.size() > 1) {
+		window.alert("cModel_GetConceptWithName: More than one element selected");
+		exit();
+	}
+	
+	var elm = elms.first();
+	//console.log("cModel_GetElementWithId: Element name  = " + elm.name);
+	return elm;
+			
+	
+}
+
+
+function cModel_GetViewWithId(id) {
+
+    var views =  $("view").filter(function(o) {
+        return ( (o.id == id) );
+    });
+	
+	if (views.size < 1) {
+		
+		console.log("No views with given id! Exiting!");
+		exit();
+	}
+	else if (views.size() > 1) {
+		window.alert("More than one view selected");
+		exit();
+	}
+	
+	var view = views.first();
+	
+	if (!view)
+		lib_Error("Failed to find view with id = " + id);
+ 	
+	//console.log("viewname = " + view.name);
+	return views.first();
+		
+}
+
+var cModel_OtherConceptsWithSameNameandType = function(occurence, caseSensitive, namespaceSensitive) {
+
+	
+	var occurenceName = occurence.name;
+	
+//console.log("occurenceName = " + occurenceName);
+	
+	if (!namespaceSensitive) {
+		occurenceName = cNamespace_GetNameOfConceptWithoutNamespace(occurence);
+		//console.log("namespaceSensitive name = ", occurence.name + ", namespaceInsensitive name = " + occurenceName);
+		
+	}
+	
+	if (!caseSensitive)
+		occurenceName = occurenceName.toUpperCase();
+	
+	var occurencetype = null;
+	if (occurence.type == "element") // works also for different types of elements, such as e.g. business-actor?
+		occurencetype = "element";
+	else if (occurence.type == "relationship")
+		occurencetype = "relationship";
+		
+/*		
+    return $(occurencetype).filter(function(o) {
+		if (caseSensitive)
+			return ( (o.name == occurenceName) && (o.type == occurence.type) && (o.concept.id != occurence.concept.id ) ); // erik: consider make it case insensitive? System option?
+		else	
+			return ( (o.name.toUpperCase() == occurenceName ) && (o.type == occurence.type) && (o.concept.id != occurence.concept.id ) ); // erik: consider make it case insensitive? System option?
+    });
+*/
+
+//console.log("occurenceName = " + occurenceName);		
+
+    //return $(occurencetype).filter(function(o) {
+	return $("element").filter(function(o) {
+		var oName = o.name;
+		
+		if (!namespaceSensitive) {
+			oName = cNamespace_GetNameOfConceptWithoutNamespace(o);
+		}
+		
+		if (!caseSensitive)
+			oName = oName.toUpperCase();
+		
+		var startOfName = null;
+		var compareOnlyStartOfName = false; // This param made for test - it works, but should be available as an option in the call
+		
+		if (compareOnlyStartOfName)
+			return ( (oName.startsWith(occurenceName) ) && (o.type == occurence.type) && (o.concept.id != occurence.concept.id ) );
+		else
+			return ( (oName	 == occurenceName ) && (o.type == occurence.type) && (o.concept.id != occurence.concept.id ) );
+			
+		
+		// old?: return ( (o.name.toUpperCase() == occurenceName ) && (o.type == occurence.type) && (o.concept.id != occurence.concept.id ) );
+    });
+	
+}
+
+
+
+var cModel_GetDuplicateModelItems = function(elm) {
+
+    return $("element").filter(function(o) {
+        return ( (o.name == elm.name) && (o.type == elm.type) ); // erik: consider make it case insensitive? System option?
+    });
+}
+
+
+function cModel_createConcept(type, name) {
+
+	var elm = model.createElement(type, name);
+	var concept = elm.concept;
+	if (!concept) {
+		window.alert("Failed to create concept with type " + type + " and name " + name + ". Exiting...");
+		exit();
+	}
+		
+	return  concept;
+}
+
+function cModel_createRelationship(relationshipType, name, source, target) {
+
+	rel = model.createRelationship(relationshipType, name, source, target);
+	if (!rel){
+		window.alert("Failed to create relationship with type " + type);
+		exit();
+	}
+	return rel;
+}
+
+function cModel_RenameProperty(model, propName, newName) {
+	
+	if (model.prop(propName) && (propName != newName) ) { // only if the property is used
+		model.prop(newName, model.prop(propName));
+		cModel_removeProperty(model, propName); // remove old
+	}
+}
+
+function cModel_removeProperty(model, propName) { 
+
+	model.removeProp(propName);
+}
+
+function cModel_CreateMissingProperty(model, propName, propValue) {
+
+	if (!model.prop(propName) ) {
+		console.log(". Creating missing or empty standard property " + propName + " for " + model.name );
+		model.prop(propName, propValue);
+	}
+}	
+
+function cModel_createMissingProperties() {
+	
+	cModel_CreateMissingProperty(model, const_prop_archi_guid, model.id);		
+	
+	cModel_CreateMissingProperty(model, const_prop_default_language, const_prop_language_value_no);	
+	cModel_CreateMissingProperty(model, const_prop_current_language, const_prop_language_value_no);
+	
+	if (const_option_antora)
+		cModel_CreateMissingProperty(model, const_prop_antoraComponentsPath, "Update value according to your local installation");
+	
+}
+
+function cModel_deleteUnusedConceptsAndRelationships() {
+
+    $("element").each(function(element) {
+        if($(element).objectRefs().isEmpty()) {
+			console.log("Deleting unused element: " + element.name);
+            element.delete();
+        }
+    });
+
+    $("relationship").each(function(r) {
+        if($(r).objectRefs().isEmpty()) {
+			console.log("Deleting unused relation: " + r.name);
+            r.delete();
+        }
+    });
+	
+}
+
+function cModel_getPath(model) {
+	var filePath = model.getPath();
+	return filePath;
+}
+
+function cModel_save(model, pathAndName) {
+	
+	var filePath = model.getPath();
+	
+	if (pathAndName) {
+		console.log("pathAndName: " + pathAndName);
+		filePath = window.promptSaveFile({ title: "Save Model to given name", fileName: [pathAndName], filterExtensions: [".archimate", "*.xml" ] });
+		if (filePath)
+		{
+			console.log("Saving to filePath: " + filePath);
+			model.save(filePath)
+		}
+		else
+			window.alert("Not saved");
+	}
+	else if (filePath) //already exists
+		model.save();
+	
+	else {
+		filePath = window.promptSaveFile({ title: "Save Model", filterExtensions: [ ".archimate", "*.xml" ] });
+		if (filePath)
+			model.save(filePath);
+	}
+	
+	return filePath;
+}
+
+function cModel_GetToplevelFolders() {
+	
+	var folders = $(model).children().filter("folder");
+	/*
+	folders.each(function(f) {
+		console.log("Toplevelfolder: " + f.name);
+    });
+	*/
+	return folders;
+
+}
+
+function cModel_GetToplevelViewsFolder() {
+
+	var folders = $(model).children().filter("folder");
+	var theViewsFolder = null;
+	
+	folders.each(function(f) {
+		if (f.name === "Views")
+			theViewsFolder = f;
+    });
+	
+	return theViewsFolder;
+
+	/* Another way: ???
+    return $(model).children().filter("folder").filter(function(f) {
+		return ( (f.name == "Views") );
+    });
+	*/
+}
+
+
+/*
+var myModel = model.load("path/test.archimate");
+myModel.setAsCurrent();
+*/
+
+
+
+function cModel_fixModelAssumingJustImportedFromSparxEA(model) {
+
+	// Sparx EA will generate its own IDs
+	
+	// For the model, all folders, views and objects, generate modelx:sparxGuid (if not already present, but if present, check that same as id)
+	
+	
+	//if (!model.prop(const_prop_archi_guid) )  // if missing, create the archi guid
+	//cModel_CreateMissingProperty(model, const_prop_archi_guid, model.id);	
+	cModel_createMissingProperties(model); // if missing, create the archi guid property as well as any other missing properties
+
+	
+	if (!model.prop(const_prop_sparx_guid) ) // if missisng, create the sparx guid from the imported file
+		cModel_CreateMissingProperty(model, const_prop_sparx_guid, model.id);
+	else if (model.prop(const_prop_sparx_guid) != model.id)  { // the sparx guid exists, but does it make sense that the value is different from the imported id?
+		window.alert("UNEXPECTED: The imported model.id = " + model.id + " is different from the imported value of " + const_prop_sparx_guid + " = " + model.prop(const_prop_sparx_id) + ". Exiting...");
+		exit();
+	}
+	
+	if ( model.prop(const_prop_sparx_guid) && model.prop(const_prop_sparx_guid) === model.id)  // the sparx guid attribute exists and equals the model.id, as expected
+		model.id = model.prop(const_prop_archi_guid); // restore the original id
+		
+		
+	// views
+	$("view").each(function(view) {
+		
+		cView_fixAssumingJustImportedFromSparxEA(view);	// The id from Sparx, but no properties
+    });
+	
+	// folders
+	$("folder").each(function(folder) {
+		
+		cFolder_createMissingProperties(folder); // easy way out for now, as per 2020 Sparx does not give properties (tagged values) for folders 
+
+    });
+	
+	// elements and relations
+	$("concept").each(function(concept) {
+		cConcept_fixAssumingJustImportedFromSparxEA(concept);
+	});	
+	
+	/*
+	$("element").each(function(element) {
+		cConcept_fixAssumingJustImportedFromSparxEA(element.concept);
+	});
+	$("relationship").each(function(relation) {
+		cRelation_fixAssumingJustImportedFromSparxEA(relation.concept);
+	});
+	*/
+}
+
+function cModel_mergeImportedSparxEA(model) {
+	
+	$("element").each(function(element) {
+		cElement_EAPostImportMerge(element);
+	});
+	//$("relationship").each(function(relation) {
+	//	cRelation_fixAssumingJustImportedFromSparxEA(relation.concept);
+	//});
+
+	
+}

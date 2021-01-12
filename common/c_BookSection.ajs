@@ -1,0 +1,396 @@
+/*
+ * c_BookSection
+ */
+ 
+load(__DIR__ + "Constants.ajs");
+load(__DIR__ + "c_Model.ajs");
+load(__DIR__ + "CBookSectionViewRef.ajs");
+
+var option_promptFileSave = false;
+
+function cBookSection_SectionHeading(sectionName, sectionLevel) {
+
+	var docString = "=";
+
+
+	var docString = "";
+
+	var i;
+	for (i = 0; i < sectionLevel; i++) {
+		docString += "=";
+	}
+
+	docString += " " + sectionName + "\n";
+
+	return docString;
+}
+
+function cBookSection_autodoc(section, sectionLevel) {
+	
+	
+	// starting with the first section, recursively drilling down the hierarchy and then going to the next sibling section and so on
+	
+	section = section.concept; // just to make sure
+	var dctType = section.prop(const_prop_dct_type);
+	if (!dctType)
+		lib_Error("Missing property '" + const_prop_dct_type + "' for section: " + section.name);
+	
+	//********* log:
+	var indent = "";
+	for (var i = 0; i < sectionLevel; i++) {
+		indent += "    ";
+	}
+	console.log(indent + "cBookSection_autodoc, " + section.name + " (" +  dctType + ")" + ", level " + sectionLevel);
+	//*********
+
+	if (section.type == "junction")
+		return "";
+		
+	var docString = "";
+
+
+	if (section.prop(const_prop_dct_type) === const_conceptType_representation__section) {
+
+		docString += CBookSection_documentAsAsciidoc(section, sectionLevel);
+	}
+	
+	else if (section.prop(const_prop_dct_type) === const_conceptType_representation__archimateView) {
+
+		docString += CBookSectionViewRef_autodoc(section, sectionLevel);
+
+	}
+	else 
+		lib_Error("Unexpected " + const_prop_dct_type + " = " + section.prop(const_prop_dct_type));
+	
+	docString += "\n\n";
+	
+	
+	
+	// drill down
+	var firstSubSection = cBookSection_determineFirstSubSection(section);
+
+
+	//if (firstSubSection)
+	//	cBookSection_autodoc(firstSubSection, sectionLevel + 1);
+
+	var nextSiblingSubSection = firstSubSection;
+	if (firstSubSection) {
+
+		docString += ":leveloffset: +1" + "\n";
+		while (nextSiblingSubSection) {
+			
+			//erik docString += "=" + " " + nextSiblingSubSection.name + "\n"; // note: hardcoded top level sectionLevel!!!!!!!!!!!!!!!!!!!
+			
+			docString += cBookSection_IncludeSubsection(section, nextSiblingSubSection);
+
+			cBookSection_autodoc(nextSiblingSubSection, sectionLevel + 1);	
+
+			nextSiblingSubSection = cBookSection_nextSiblingSection(nextSiblingSubSection);
+		
+		}
+		docString += ":leveloffset: -1" + "\n";
+//lib_ShowTestmessageAndExit(docString);	
+	}
+		
+/**
+	// next at same level
+	var nextSiblingSection = cBookSection_nextSiblingSection(section);
+	if (nextSiblingSection) {
+		cBookSection_autodoc(nextSiblingSection, sectionLevel);
+	}
+***/
+
+	// save asciidoc text
+	var modulePath = CBookSection_determineModulePath(section);
+	CBookSection_saveViewPageToFile(section, docString, modulePath);	
+//lib_ShowTestmessageAndExit(docString);
+	return docString;
+}
+
+function CBookSection_documentAsAsciidoc(section, sectionLevel) {
+	
+	var docString = "";
+	docString += cAntoraModule_asciidocTemplateHeader(section.name);
+
+	// take the description from the section object, if not  empty
+	if (section.documentation) {
+		var sectionName = "Om " + section.name;
+		docString += cBookSection_SectionHeading(sectionName, 2);
+		docString += section.documentation;	
+	}
+
+	return docString;
+
+
+}
+
+function cBookSection_nextSiblingSection(section) {
+
+	var outgoingAssociationRels = $(section).outRels("association-relationship");
+	
+	//console.log("#outgoingAssociationRels = " + outgoingAssociationRels.size());
+	
+	if (outgoingAssociationRels.size() === 1) {
+		return outgoingAssociationRels.first().target;
+	}
+	else if (outgoingAssociationRels.size() === 0)
+		return null;
+	else {
+		
+		lib_Error("More than one outgoing association relation from section " + section.name + "." );
+	}
+}
+
+function cBookSection_determineFirstSubSection(section) {
+
+	var firstSubSection = null;
+	var incomingAssociationRels = null;
+	
+	var subSections = cElement_getSubElements(section);
+	if (subSections != null) {
+		
+		subSections.each(function(sub) {				
+			var numIncomingAssociationRels = $(sub).inRels("association-relationship").size();
+
+			
+			if (numIncomingAssociationRels == 0) { // i.e. no preceeding chapter at the same hierarchy level
+				firstSubSection = sub;	
+				return firstSubSection;
+			}				
+		});
+	}
+	
+	return firstSubSection; // null = no further subsections
+	
+}
+
+
+
+function cBookSection_documentSectionAsAsciidocChapters(section, view, sectionLevel) {
+
+
+	var docString = "";
+
+	// main chapter caption
+	docString += "\n";
+	
+	var headerString = "=";
+	var i;
+	for (i = 0; i < sectionLevel; i++) {
+		headerString += "=";
+	}
+	docString += headerString + " "; 
+	
+	docString += "Oversikt";
+	// docString += " - " + view.name;
+	docString += "\n";
+
+
+
+	// view description
+	docString += "\n";
+	docString += view.documentation;
+	docString += "\n\n";
+
+	// save image of the archi view to file
+//cView_saveViewImageToFile(view);
+	
+	//if (cView_GetImagePath(view)) {
+		docString += "." + view.name;
+		
+		if (const_option_antora) {		
+			docString += "\nimage::" +  view.name + ".png" + "[alt=" + view.name + " image]";
+		}
+		
+		//cView_GetImagePath(view) + "[alt=" + view.name + " image]";
+				
+		// todo: ",link = ..." for link to published web view
+		docString += "\n\n"
+	//}	
+
+	/*
+	if (optionSectionLevel == 2) {
+		docString += "== "; 
+		docString += "Elementer";
+		docString += "\n";
+	}
+	*/
+
+	//topLevelElms = cView_getTopLevelElementsOf(view, elms, rels);
+	topLevelElms = cView_getTopLevelElementsOf(view);
+	
+	
+	topLevelElms.each(function(e) {
+		
+		docString += cView_documentElementHiearchy(view, e, sectionLevel);
+	});	
+	
+	
+	// save asciidoc text
+	var modulePath = CBookSection_determineModulePath(section);
+	CBookSection_saveViewPageToFile(section, docString, modulePath);
+	
+	//console.log(docString);
+	
+	return docString;
+}
+
+
+function cBookSection_sectionHeader(section, sectionLevel) {
+
+	var docString = "";
+	//docString += cBook_asciidocTemplateHeader(book);
+
+	// main chapter caption
+	docString += "\n";
+	
+	var headerString = "=";
+	/*
+	var i;
+	for (i = 0; i < sectionLevel; i++) {
+		headerString += "=";
+	}
+	*/
+	
+	docString += headerString + " "; 
+	
+	docString += "Om " + section.name;
+	//docString += "Oversikt";
+	// docString += " - " + book.name;
+	docString += "\n";
+
+
+
+	// book description
+	docString += "\n";
+	docString += section.documentation;
+	docString += "\n\n";
+
+/* not here-----------------------
+	docString += "." + book.name;
+	docString += "\nimage::" +  book.name + ".png" + "[alt=" + book.name + " image]";
+				
+	// todo: ",link = ..." for link to published web view
+	docString += "\n\n";
+*/
+
+	return docString;
+}
+
+function cBookSection_sectionFileName(section) {
+
+/*
+	var bookAntoraModule = cBookSection_getAntoraModule(section);
+	
+	if (!bookAntoraModule) 
+		lib_Error("Missing property " + const_prop_antoraModule);
+	
+	bookAntoraModule += ".adoc"; 
+	return bookAntoraModule;
+*/
+
+	var fileName = section.name + ".adoc";
+	return fileName;
+
+}
+
+function cBookSection_getAntoraComponent(section) {
+	return cConcept_GetProperty(section, const_prop_antoraComponent);
+}
+function cBookSection_getAntoraVersion(section) {
+	return cConcept_GetProperty(section, const_prop_antoraVersion);
+	
+}
+function cBookSection_getAntoraModule(section) {
+	return  cConcept_GetProperty(section, const_prop_antoraModule)
+}
+
+function CBookSection_saveSectionPageToFile(section, docString, modulePath) {
+
+	var pagesDirPath = modulePath + "\\" + "pages";
+	var pathAndfileName = pagesDirPath + "\\" + section.name + ".adoc";
+
+	cFilesystem_mkDirIfNotExisting(pagesDirPath);
+
+	var fileName = null;
+
+
+	if (option_promptFileSave)
+		fileName = window.promptSaveFile( { title: "Save view text", filterExtensions: [ "*.adoc" ], fileName: pathAndfileName } );
+	else
+		fileName = pathAndfileName;
+	
+		
+	if (fileName) {
+		$.fs.writeFile(fileName, docString);
+	}
+	else {
+		lib_Error("Undetermined fileName")
+	}
+}
+
+function CBookSection_saveViewPageToFile(section, docString, modulePath) {
+
+	var pagesDirPath = modulePath + "\\" + "pages";
+	var pathAndfileName = pagesDirPath + "\\" + section.name + ".adoc";
+
+	cFilesystem_mkDirIfNotExisting(pagesDirPath);
+
+	var fileName = null;
+
+	if (option_promptFileSave)
+		fileName = window.promptSaveFile( { title: "Save view text", filterExtensions: [ "*.adoc" ], fileName: pathAndfileName } );
+	else
+		fileName = pathAndfileName;
+	
+		
+	if (fileName) {
+		$.fs.writeFile(fileName, docString);
+	}
+	else {
+		lib_Error("Undetermined fileName in CBookSectionViewRef_saveViewPageToFile.")
+	}
+}
+
+function CBookSection_determineModulePath(section) {
+
+	var antoraRootPath = cAntoraModule_GetComponentsRootPath();
+	var componentName = cConcept_GetProperty(section, const_prop_antoraComponent);
+	var version = cConcept_GetProperty(section, const_prop_antoraVersion);
+	var moduleName = cConcept_GetProperty(section, const_prop_antoraModule)
+	
+	if (!antoraRootPath)
+		lib_Error("Missing model property " + const_prop_antoraComponentsPath);
+	if (!componentName)
+		lib_Error("Missing element property " + const_prop_antoraComponent +  " for element \++" + section.name + " with property " + const_prop_dct_type + " = " + const_conceptType_representation__archimateView);
+	if (!moduleName)
+		lib_Error("Missing element property " + const_prop_antoraModule +  " for element " + section.name + " with property " + const_prop_dct_type + " = "  + const_conceptType_representation__archimateView);
+	if (!version)
+		lib_Error("Missing element property " + const_prop_antoraVersion +  " for element " + section.name + " with property " + const_prop_dct_type + " = " + const_conceptType_representation__archimateView);
+	
+	var modulePath = cAntoraModule_locateModulePath(antoraRootPath, componentName, moduleName, version);
+	
+	return modulePath;
+}
+
+
+function cBookSection_IncludeSubsection(section, subSection) {
+		
+	docString = "";
+	var component = cBookSection_getAntoraComponent(subSection);
+	lib_VerifyNotNull(component);
+	var version = cBookSection_getAntoraVersion(subSection);
+	//lib_VerifyNotNull(version);
+	var module = cBookSection_getAntoraModule(subSection);
+	lib_VerifyNotNull(module);
+
+	var versionStr = "";
+	if (version)
+		versionStr = version + "@";
+
+	var includeFileName = cBookSection_sectionFileName(subSection);
+
+	docString += "include::" + versionStr + component + ":" + module + ":page$" + cBookSection_sectionFileName(subSection) + "[]" + "\n";
+		
+	return 	docString;
+}

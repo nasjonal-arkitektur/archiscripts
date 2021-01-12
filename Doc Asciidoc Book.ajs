@@ -1,0 +1,70 @@
+load(__DIR__ + "/common/Constants.ajs");
+load(__DIR__ + "/common/c_Model.ajs");
+load(__DIR__ + "/common/c_View.ajs");
+load(__DIR__ + "/common/c_Clipboard.ajs");
+load(__DIR__ + "/common/c_Selection.ajs");
+load(__DIR__ + "/common/c_Concept.ajs");
+load(__DIR__ + "/common/c_Book.ajs");
+load(__DIR__ + "/common/c_Filesystem.ajs");
+load(__DIR__ + "/common/c_AntoraModule.ajs");
+
+	
+console.show();
+console.clear();
+
+
+/*
+var antoraRootPath = "c:\\gitlab\\digdir\\components";
+var componentName = "architecture-repositorys";
+var version = "master";
+//var moduleName = "request-reply";
+var moduleName = "unit-autodoc1";
+
+
+var modulePath = cAntoraModule_locateModulePath(antoraRootPath, componentName, moduleName, version);
+window.alert(modulePath);
+
+exit();
+*/
+
+//var l = cFilesystem_listFiles("c:\\gitlab\\digdir\\components");
+//exit();
+
+//var fileList = cFilesystem_listFilesWithExtension("c:\\gitlab\\digdir", "txt");
+//cFilesystem_walk("c:\\gitlab\\digdir");
+//exit();
+
+/*
+cFilesystem_writeTextFile("c:\\gitlab\\digdir\\test.txt", "Hei3");
+var txt = cFilesystem_readTextFile("c:\\gitlab\\digdir\\test.txt");
+console.log(txt);
+exit();
+*/
+
+
+
+console.log("Script starting");
+
+
+var docString = "";
+// var view = CSelection_GetTheSelectedView();
+
+var views = CSelection_GetAllSelectedViews()
+
+if (!views || views.size() == 0)
+	lib_Error("No views selected");
+
+views.each(function(view) {
+
+	console.log("Processing autodoc view " + view.name);
+
+	docString = cView_asciidocAutoDoc2(view, 1);
+	//cClipboard_SetClipboardString(docString);
+	//console.log("\n\n\n\n" + docString);
+	
+});	
+
+console.log("Script completed");
+
+
+

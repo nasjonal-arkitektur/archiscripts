@@ -1,0 +1,1066 @@
+/*
+ * c_View
+ */
+ 
+load(__DIR__ + "../common/c_Folder.ajs");
+load(__DIR__ + "../common/c_Model.ajs");
+load(__DIR__ + "../common/c_Collection.ajs");
+load(__DIR__ + "../common/CommonFunctions.ajs");
+
+var m_view = null;
+var option_promptFileSave = true;
+
+function cView_GetSelectedElements() {
+
+	return $(selection).filter("element");
+
+/*
+	$(selection).filter("element").each(function(e) {
+		console.log("Selected element: " + e.name );			
+	});
+*/
+	
+}
+
+function cView_GetRelativeRenderPath(view) {
+
+window.alert("lib_SlicePathSlash from cView_GetRelativeRenderPath");
+
+	var path = "";
+
+	if (const_option_antora) {
+		path = view.prop(const_prop_antoraViewPath);
+		path = lib_SlicePathSlash(path);
+	}
+	else
+		path = view.prop(const_prop_viewRelativeRenderPath);
+	
+	return path;
+}
+
+function cView_GetPagesFolder(view) {
+	var path = "";
+
+	path += cModel_GetRenderingRootPath(view);
+
+
+	if (const_option_antora) {
+		window.alert("lib_SlicePathSlash from cView_GetPagesFolder");
+		path = lib_SlicePathSlash(path);
+		path += "\\" + cView_GetRelativeRenderPath(view) + "\\" + "pages";	
+		
+	}
+	else
+		path += view.prop(const_prop_viewRelativeRenderPath);
+	
+	return path;
+}	
+
+
+function cView_GetImagePath(view) {
+
+	var path = cView_GetImagesFolder(view);
+	window.alert("lib_SlicePathSlash from cView_GetImagePath");
+	path = lib_SlicePathSlash(path);
+	path += "\\" + view.name + ".png";
+	
+	
+	//console.log("cView_GetImagePath says " + path);
+
+	return path;
+}
+
+
+function cView_GetImagesFolder(view) {
+
+	var path = "";
+	
+	if (const_option_antora) {
+		
+		console.log(view.type);
+		err = new Error();
+		console.log(err.stack);
+		window.alert("cView_GetImagesFolder(0)");
+		
+		if (view.prop(const_prop_antoraViewImagePath)) {
+			path = cModel_GetRenderingRootPath();
+			window.alert("lib_SlicePathSlash from cView_GetImagesFolder(1)");
+			path = lib_SlicePathSlash(path);
+			path += "\\" + view.prop(const_prop_antoraViewImagePath);
+			window.alert("lib_SlicePathSlash from cView_GetImagesFolder(2)");			
+			path = lib_SlicePathSlash(path);
+		}
+		else
+		{	
+			path = cModel_GetRenderingRootPath();
+			window.alert("lib_SlicePathSlash from cView_GetImagesFolder(3)");			
+			path = lib_SlicePathSlash(path);
+			path += "\\" + cView_GetRelativeRenderPath(view) + "\\" + "images";
+			console.log("Image path: " + path );	
+		}
+	}
+		
+	else
+		path = cModel_GetRenderingRootPath() + "\\" + cView_GetRelativeRenderPath(view) + "\\" + const_mediaFolderName;
+
+	return path;
+}
+
+
+function cView_GetSelectedRelationship() {
+
+	console.log("cView_GetSelectedRelationship used? Exiting...");
+	exit();
+
+	$(selection).filter("relationship").each(function(r) {
+		console.log("Selected relationship: " + r.name );			
+	});
+
+}
+
+function cView_GetSelectedConcepts() {
+
+
+	return $(selection).filter("concept");
+	
+	/*
+	$(selection).filter("concept").each(function(e) {
+		console.log("Selected concept: " + e.name );			
+	});
+	*/
+	
+}	
+	
+var cView_GetElementsInView = function(v) {
+
+	//var elements = $(v).children().filter("element");
+	//return elements;
+	
+	var resultingItems = null;
+	var viewItems = null;
+	
+	viewItems = $(v).find().filter("element");
+
+	viewItems.each(function(item) {	
+	
+		//if (itemType == "concept")
+		//	item = item.concept;
+	
+		if (resultingItems == null) {
+			resultingItems = $(item);
+		}
+		else {
+			
+			var itemInList = cCollection_GetItemsWithGivenId(resultingItems, item);
+			
+			if (itemInList.size() < 1)
+				resultingItems.add($(item));
+		}
+	});
+	
+	return resultingItems;
+}
+
+var cView_GetRelationshipsInView = function(v) {
+
+	var resultingItems = null;
+	var viewItems = null;
+	
+	viewItems = $(view).find().filter("relationship");
+
+	viewItems.each(function(item) {	
+	
+	
+		if (resultingItems == null) {
+			resultingItems = $(item);
+		}
+		else {
+			
+			var itemInList = cCollection_GetItemsWithGivenId(resultingItems, item);
+			
+			if (itemInList.size() < 1)
+				resultingItems.add($(item));
+		}
+	});
+	
+	return resultingItems;
+}
+
+var cView_GetOtherConceptsInViewWithSameName = function(vu, elm) {
+
+    return $(vu).children().filter("element").filter(function(o) {
+		
+		return ( (o.name == elm.name) && ( (o.type == elm.type) && (o.concept.id != elm.concept.id)) );
+	
+    });
+}
+
+var cView_GetOtherOccurencesInView = function(vu, elm) {
+
+
+	console.log("cView_GetOtherOccurencesInView, " + "view = " + vu.name + ", element = " + elm.name);  
+	
+	/*
+    return $(vu).children().filter("element").filter(function(o) { // erik tbd! doesn't work for nested objects - need recursion or ...!!!!!?
+		return ( o.concept.id == elm.concept.id );
+	*/
+	
+	return $("element").filter(function(o) { 
+		if (o.view == vu)
+			return ( o.concept.id == elm.concept.id );
+		else
+			return null;
+	
+    });
+}
+
+var cView_MergeWithDuplicateElementsInView = function(v) {
+
+	window.prompt("cView_MergeWithDuplicateElementsInView yet to be implemented!? Exiting...");
+	exit();
+
+	var elements = $(v).children().filter("element");
+	return elements;
+}
+
+function cView_GetCurrentLanguage(view) {	
+	return view.prop(const_prop_language);
+}
+
+function cView_SetCurrentLanguage(view, language) {
+	// assume valid language
+	
+	view.prop(const_prop_current_language, language);
+	
+
+}
+
+function cView_removeProperty(view, propName) { 
+
+	view.removeProp(propName);
+}
+
+function cView_RenameProperty(view, propName, newName) {
+	
+	if (view.prop(propName) && (propName != newName) ) { // only if the property is used
+		view.prop(newName, view.prop(propName)); //create new
+		cView_removeProperty(view, propName); // remove old
+	}
+}
+
+function cView_CreateMissingProperty(view, propName, propValue) {
+
+	if ( view.prop(propName) === null ) {
+		console.log(". Creating missing or empty standard property " + propName + " for " + view.name );
+		view.prop(propName, propValue);
+	}
+}	
+
+function cView_createMissingProperties(view) {
+
+			
+		cView_CreateMissingProperty(view, const_prop_archi_guid, view.id);		
+			
+		//view.removeProp(const_prop_default_language); // very very temporary!
+		//view.removeProp(const_prop_current_language); // very very temporary!
+		//CreateMissingProperty(view, const_prop_default_language, const_prop_language_value_no);
+		//CreateMissingProperty(view, const_prop_current_language, const_prop_language_value_no);
+		
+		
+		//cView_CreateMissingProperty(view, const_prop_metaLevel, const_prop_metaLevel_value_default);
+		cView_CreateMissingProperty(view, const_prop_language, cModel_GetCurrentLanguage() );
+		
+		//if (cModel_GetCurrentLanguage() === "no") {
+			cView_CreateMissingProperty(view, const_prop_name_no, view.name );
+			cView_CreateMissingProperty(view, const_prop_name_en, "" );
+			cView_CreateMissingProperty(view, const_prop_description_no, view.documentation );
+			cView_CreateMissingProperty(view, const_prop_description_no, "" );
+			cView_CreateMissingProperty(view, const_prop_narrative_no, "" );
+		//}
+		//else if (cModel_GetCurrentLanguage() === "en") {
+			cView_CreateMissingProperty(view, const_prop_name_en, "" );
+			cView_CreateMissingProperty(view, const_prop_name_en, view.name );
+			cView_CreateMissingProperty(view, const_prop_description_en, "" );
+			cView_CreateMissingProperty(view, const_prop_description_en, view.documentation );
+			cView_CreateMissingProperty(view, const_prop_narrative_en, "" );
+		//}
+			
+		if (const_option_antora)
+		{
+			cView_CreateMissingProperty(view, const_prop_antoraViewPath, "");
+			cView_CreateMissingProperty(view, const_prop_antoraViewImagePath, "");
+		}
+		else
+			cView_CreateMissingProperty(view, const_prop_viewRelativeRenderPath, "");	
+}
+
+function cView_getOutgoingElementRelations(view, element) {
+	var allOutgoingElementRelations = cConcept_getOutgoingRelations(element.concept);
+	var viewOutgoingElementRelations = allOutgoingRelations;
+	
+	
+}
+
+
+
+function cView_asciidocTemplateHeader(view) {
+		
+	var docString = "";
+	var templateheader = 
+	/*
+	"////" + "\n" +
+	"Guide to the below header attributes:" + "\n\n" +
+
+	"    lang: en; no" + "\n" +
+	"    difi_orig_language: en; no" + "\n" +
+	"    difi_translation_status: -; missing; incomplete; OK " + "\n" +
+	"    keywords_en: comma separated list of english keywords (no controlled vocabulary); TBD" + "\n" +
+	"    keywords_no: comma separated list of Norwegian keywords (no controlled vocabulary); TBD  " + "\n\n" +
+		
+	"Note: The _lang_ value may be overridden by a command line parameter." + "\n" +
+	"////" + "\n\n" +
+	*/
+	
+	
+	"= " + view.name + "\n" +
+	":wysiwig_editing: 1" + "\n" +
+	"ifeval::[{wysiwig_editing} == 1]" + "\n" +
+	":imagesdir: ../images" + "\n" +
+	"endif::[]" + "\n" +
+	":toc: left" + "\n" +
+	":toclevels: 7" + "\n" +
+	":sectnums:" + "\n" +
+	":sectnumlevels: 7" + "\n";
+	
+	/*
+	"// The above parameters are processed by scripts included by the following statement" + "\n" +
+	"include::../plattform_felles/includes/commonincludes.adoc[]" + "\n\n";
+	*/
+
+	docString += templateheader;
+	return docString;
+}
+
+
+
+function cView_getTopLevelElementsOf(view) {
+	
+
+	var elms = cView_GetElementsInView(view);
+	
+	if (!elms) {
+		console.log("Error: cView_getTopLevelElementsOf");
+		err = new Error();
+		console.log(err.stack);
+	}	
+	
+	var topLevelElements = null;
+	
+	
+	// note: need to consider elements with no relations in the view + top level elements with
+
+	elms.each(function(e) {
+
+		var doesCompose = false;
+		var soleToplevel = true;
+		var isTopLevel = true;
+
+		var ownViewRels = $(e).rels();
+		ownViewRels.each(function(r) {
+			if ((r.type == "composition-relationship"  || r.type == "aggregation-relationship") && (r.source.id === e.id)) { 
+				doesCompose = true;
+				//break;
+			}
+			else if ((r.type == "composition-relationship"  || r.type == "aggregation-relationship") && (r.target.id === e.id)) { 
+				soleToplevel = false;
+			}
+	
+		});
+
+
+		if (doesCompose) {
+				
+			ownViewRels.each(function(r) {
+				if (r.type == "composition-relationship" && r.target.id === e.id) {
+					isTopLevel = false;
+					//break;
+				}
+	
+			});		
+		}
+		else if (!soleToplevel){
+			isTopLevel = false;
+		}
+
+		
+		if (isTopLevel) {
+			
+			if (topLevelElements == null) {
+				topLevelElements = $(e);
+			}
+			else {
+				topLevelElements.add($(e));
+			}
+			
+		}
+
+
+	});
+	
+	
+	return topLevelElements;
+}
+
+
+
+
+
+
+function cView_documentElementHiearchy(view, e, hierarchyLevel) {
+	
+	hierarchyLevel++;
+	var docString = "";
+
+	if (e.type == "junction")
+		return "";
+
+
+	// element chapter caption
+
+	var headerString = "";
+	var i;
+	for (i = 0; i < hierarchyLevel; i++) {
+		headerString += "=";
+	}
+	
+	docString = headerString + " ";
+	docString += e.name;
+	docString += "\n";
+	
+	// Element description
+	docString += "\n";
+	docString += e.documentation;
+	docString += "\n\n";
+		
+	var subElms = cElement_getSubElements(e);
+	if (subElms != null) {
+		subElms.each(function(se) {
+			docString += cView_documentElementHiearchy(view, se, hierarchyLevel);
+		});
+	}
+	
+	return docString;
+}
+
+
+
+function cView_saveViewPageToFile(view, docString) {
+
+	var fileN =  cView_GetPagesFolder(view) + "\\" + view.name + ".adoc";
+	var fName = null;
+	//window.alert("pathAndfileName = " + fileN);
+
+	if (option_promptFileSave)
+		fName = window.promptSaveFile( { title: "Save view text", filterExtensions: [ "*.adoc" ], fileName: fileN } );
+	else
+		fName = fileN;
+
+	if (fName) {
+		$.fs.writeFile(fName, docString);
+	}
+	else {
+		window.alert("Error: Undetermined fileName in cView_saveViewPageToFile. Existing...")
+	}
+}
+
+function cView_saveViewImageToFile(view) {
+
+	var pathAndfileName =  cView_GetImagePath(view);
+	var bytes = $.model.renderViewAsBase64(view, "PNG");
+	var fileName = null;
+
+	//window.alert("pathAndfileName = " + pathAndfileName);
+	if (option_promptFileSave)
+		fileName = window.promptSaveFile( { title: "Save view image", filterExtensions: [ "*.png" ], fileName: pathAndfileName } );
+	else
+		fileName = pathAndfileName;
+	
+	if (fileName) {
+		$.fs.writeFile(fileName, bytes, "BASE64");
+	}
+	else {
+		window.alert("Error: Undetermined fileName in cView_saveViewImageToFile. Exiting...")
+		exit();
+	}
+}
+
+
+function cView_documentViewAsAsciidocChapters(view, sectionLevel) {
+
+
+	// input: var view = CSelection_GetTheSelectedView();
+
+	var docString = "";
+	docString += cView_asciidocTemplateHeader(view);
+
+	// main chapter caption
+	docString += "\n";
+	
+	var headerString = "=";
+	var i;
+	for (i = 0; i < sectionLevel; i++) {
+		headerString += "=";
+	}
+	docString += headerString + " "; 
+	
+	docString += "Oversikt";
+	// docString += " - " + view.name;
+	docString += "\n";
+
+
+
+	// view description
+	docString += "\n";
+	docString += view.documentation;
+	docString += "\n\n";
+
+	// save image of the archi view to file
+//cView_saveViewImageToFile(view);
+	
+	//if (cView_GetImagePath(view)) {
+		docString += "." + view.name;
+		
+		if (const_option_antora) {		
+			docString += "\nimage::" +  view.name + ".png" + "[alt=" + view.name + " image]";
+		}
+		
+		//cView_GetImagePath(view) + "[alt=" + view.name + " image]";
+				
+		// todo: ",link = ..." for link to published web view
+		docString += "\n\n"
+	//}	
+
+	/*
+	if (optionSectionLevel == 2) {
+		docString += "== "; 
+		docString += "Elementer";
+		docString += "\n";
+	}
+	*/
+
+	//topLevelElms = cView_getTopLevelElementsOf(view, elms, rels);
+	topLevelElms = cView_getTopLevelElementsOf(view);
+	
+	
+	topLevelElms.each(function(e) {
+		
+		docString += cView_documentElementHiearchy(view, e, sectionLevel);
+	});	
+	
+	cView_saveViewPageToFile(view, docString);
+	
+	//console.log(docString);
+	
+	return docString;
+}
+
+function cView_documentRefViewAsAsciidocChapters(view, sectionLevel) {
+
+
+	// input: var view = CSelection_GetTheSelectedView();
+
+	var docString = "";
+	//----------------------------------docString += cView_asciidocTemplateHeader(view);
+
+	// main chapter caption
+	//----------------------docString += "\n";
+	
+	var headerString = "=";
+	var i;
+	for (i = 0; i < sectionLevel; i++) {
+		headerString += "=";
+	}
+	docString += headerString + " "; 
+	
+	docString += "Oversikt";
+	// docString += " - " + view.name;
+	docString += "\n";
+
+
+
+	// view description
+	docString += "\n";
+	docString += view.documentation;
+	docString += "\n\n";
+
+	// save image of the archi view to file
+//cView_saveViewImageToFile(view);
+	
+	//if (cView_GetImagePath(view)) {
+		docString += "." + view.name;
+		
+		if (const_option_antora) {		
+			docString += "\nimage::" +  view.name + ".png" + "[alt=" + view.name + " image]";
+		}
+		
+		//cView_GetImagePath(view) + "[alt=" + view.name + " image]";
+				
+		// todo: ",link = ..." for link to published web view
+		docString += "\n\n"
+	//}	
+
+	/*
+	if (optionSectionLevel == 2) {
+		docString += "== "; 
+		docString += "Elementer";
+		docString += "\n";
+	}
+	*/
+
+	//topLevelElms = cView_getTopLevelElementsOf(view, elms, rels);
+	topLevelElms = cView_getTopLevelElementsOf(view);
+	
+	
+	topLevelElms.each(function(e) {
+		
+		docString += cView_documentElementHiearchy(view, e, sectionLevel);
+	});	
+	
+	cView_saveViewPageToFile(view, docString);
+	
+	//console.log(docString);
+	
+	return docString;
+}
+
+function cView_fixAssumingJustImportedFromSparxEA(view) {
+	
+	cView_createMissingProperties(view); // if missing, create the archi guid property as well as any other missing properties
+	
+	if (!view.prop(const_prop_sparx_guid) ) // if missing, create the sparx guid from the imported file
+		cView_CreateMissingProperty(view, const_prop_sparx_guid, view.id);
+	else if (view.prop(const_prop_sparx_guid) != view.id)  { // the sparx guid exists, but does it make sense that the value is different from the imported id?
+		window.alert("UNEXPECTED: The imported view.id = " + view.id + " is different from the imported value of " + const_prop_sparx_guid + " = " + view.prop(const_prop_sparx_id) + ". Exiting...");
+		exit();
+	}
+	
+	if ( view.prop(const_prop_sparx_guid) && view.prop(const_prop_sparx_guid) === view.id) { // the sparx guid attribute exists and equals the view.id, as expected
+		if (view.prop(const_prop_archi_guid) ) // if exists (though don't expect it in the imported file from Sparx)
+			view.id = view.prop(const_prop_archi_guid); // restore the original id
+		else {
+			console.log("Warning: Missing property " + const_prop_archi_guid + " for view with " + const_prop_sparx_guid + " = " + view.prop(const_prop_sparx_guid) );
+			
+		}
+	}
+}
+
+
+
+/*** temp backup copy
+function cView_asciidocAutoDoc(view) {
+
+	var topLevelElms = cView_getTopLevelElementsOf(view);
+	
+	
+	topLevelElms.each(function(e) {
+		
+		console.log("Top level element: " + e.name + " (" + e.type + ":" + e.prop(const_prop_dct_type) + ")" );
+
+		//docString += cView_documentElementHiearchy(view, e, optionSectionLevel);
+
+
+        $(e).children().each(function (viewRefs) {
+			
+			console.log("View ref: " + viewRefs.name + " (" + viewRefs.type + ":" + viewRefs.prop(const_prop_dct_type)+ ")" );
+
+            if ((viewRefs) && ((viewRefs.type == 'archimate-diagram-model') || (viewRefs.type == 'sketch-model'))) {
+
+                // Find the actual linked views
+                var viewsCollection = $('archimate-diagram-model');
+                viewsCollection.add($('sketch-model'));
+				
+				var duplicate = false;
+				var alreadyFound = false;
+                viewsCollection.each(function (linkedView) {
+					
+					//console.log("a View: " + linkedView.name + ": " + linkedView.id);			
+                    // this doesn't cater for duplicate view names, sorry
+                    if (linkedView.name === viewRefs.name) {
+                        //viewList.push([viewRefs, linkedView]);
+						console.log("--viewRefs.name: " + viewRefs.name + ": " + viewRefs.id);
+						if (alreadyFound) {
+							duplicate = true;
+							console.log("Problem: Found more than one view with the name: '" + linkedView.name + "'. You need to resolve this before rerunning the script. Sorry. Exiting..." );
+							window.alert("Problem: Found more than one view with the name: '" + linkedView.name + "'. You need to resolve this before rerunning the script. Sorry. Exiting..." );
+							//exit();
+						}
+						else
+						 alreadyFound = true;
+						
+                    }
+                });
+            }
+
+
+        });
+
+	});	
+
+
+	//window.alert("cView_asciidocAutoDoc: Work in progress");
+	        
+	
+}
+***/
+
+
+
+function cView_asciidocAutoDoc(view, sectionLevel) {
+
+	var docString = "";
+	var topLevelElms = cView_getTopLevelElementsOf(view);
+	
+	
+	topLevelElms.each(function(book) {
+		
+		// assume top level type is book!	
+		console.log("Top level element: " + book.name + " (" + book.type + ":" + book.prop(const_prop_dct_type) + ")" );
+		
+		
+		if (book.prop(const_prop_dct_type) != const_conceptType_representation__book) {
+			window.alert("Problem: Expected top level element of dct:type=" +  const_conceptType_representation__book + ". Exiting...");
+			exit();
+		}
+		
+		docString += "= " + book.name + "\n\n";
+		
+		// get the views/sections of the book, as represented by Representation objects with property dct:type = modelx:section:
+		var topChapters = null;
+		var bookSubElms = cElement_getSubElements(book);
+		/*	
+		var bookSubConcepts = cConcept_getSubConcepts(book);
+		console.log("bookSubConcepts:");
+		bookSubElms.each(function(section) {
+			console.log("\t" + section.name);
+		});
+		*/
+
+		if (bookSubElms === null) {
+			window.alert("Problem: No sections in book " + book.name + ". Exiting...");
+			exit();
+		}
+		
+				
+		// determine top level sections
+		bookSubElms.each(function(section) {
+			var superElms = cElement_getSuperElements(section);
+			if (superElms.size() === 1) { // the book only
+				console.log("Top level section (before ordering): " + section.name);
+				if (!topChapters)
+					topChapters = $(section);
+				else
+					topChapters.add($(section));
+			}
+		});
+			
+		
+		// determine which section comes first (assume only one)
+		var firstSection = null;
+		topChapters.each(function(section) {
+			
+			var incomingRels = $(section).inRels("association-relationship").size();
+
+			if (incomingRels == 0) {
+				if (!firstSection)
+					firstSection = section;
+				else {
+					window.alert("Problem: Unable to determine which is the first section of the book; more than one section without incoming associations. Exiting...");
+					exit();
+				}
+				
+			}
+		});
+		
+		// output, with top level sections in proper order
+		var topSection = firstSection;
+		while (topSection != null) {
+			//topSection = CDocSection_getNextSection(topSection);
+			console.log("Ordered top level section: " + topSection.name);
+			
+			// get hold of the referenced view object
+			var refViewID = topSection.prop("drill down");
+			if (!refViewID) {
+				window.alert("Problem: Missing property 'drill down' for element with name '" + topSection.name + "'. Exiting");
+				exit();
+			}
+			var refView = cModel_GetViewWithId(refViewID);
+			if (!refView) {
+				window.alert("Error: Failed to get view for element with name '" +  topSection.name + "'. Please check 'drill down' value = " + refViewID );
+				exit();
+			}	
+
+			// doc the view!
+			docString += cView_documentElementHiearchy2(view, topSection, sectionLevel);
+			
+			var outgoingAssociations = $(topSection).outRels("association-relationship");
+			if (outgoingAssociations.size() > 1)
+				window.alert("Problem: More than one outgoing association for section '" + topSection + "'. Exiting...");
+			else if (outgoingAssociations.size() === 0)
+				topSection = null;
+			else {
+				topSection = outgoingAssociations.first().target;
+			}
+		}
+		
+		console.log("docString:\n" + docString);
+	
+exit();
+		bookSubElms.each(function(section) {
+			var refViewID = section.prop("drill down");
+			if (!refViewID) {
+				window.alert("Problem: Missing property 'drill down' for element with name '" + section.name + "'. Exiting");
+				exit();
+			}
+			var refView = cModel_GetViewWithId(refViewID);
+			if (!refView) {
+				window.alert("Error: Failed to get view for element with name '" +  section.name + "'. Please check 'drill down' value = " + refViewID );
+				exit();
+			}				
+
+		
+			var viewString = "";
+			//viewString += cView_documentViewAsAsciidocChapters(view, sectionLevel);
+			//docString += cView_documentElementHiearchy(view, e, sectionLevel);
+			console.log("viewString:\n" + viewString);
+			
+		});
+
+
+
+		
+		/***
+        $(e).children().each(function (viewRefs) {
+			
+			console.log("View ref: " + viewRefs.name + " (" + viewRefs.type + ":" + viewRefs.prop(const_prop_dct_type)+ ")" );
+
+            if ((viewRefs) && ((viewRefs.type == 'archimate-diagram-model') || (viewRefs.type == 'sketch-model'))) {
+
+                // Find the actual linked views
+                var viewsCollection = $('archimate-diagram-model');
+                viewsCollection.add($('sketch-model'));
+				
+				var duplicate = false;
+				var alreadyFound = false;
+                viewsCollection.each(function (linkedView) {
+					
+					//console.log("a View: " + linkedView.name + ": " + linkedView.id);			
+                    // this doesn't cater for duplicate view names, sorry
+                    if (linkedView.name === viewRefs.name) {
+                        //viewList.push([viewRefs, linkedView]);
+						console.log("--viewRefs.name: " + viewRefs.name + ": " + viewRefs.id);
+						if (alreadyFound) {
+							duplicate = true;
+							console.log("Problem: Found more than one view with the name: '" + linkedView.name + "'. You need to resolve this before rerunning the script. Sorry. Exiting..." );
+							window.alert("Problem: Found more than one view with the name: '" + linkedView.name + "'. You need to resolve this before rerunning the script. Sorry. Exiting..." );
+							//exit();
+						}
+						else
+						 alreadyFound = true;
+						
+                    }
+                });
+            }
+
+
+        });
+		**/
+		
+
+	});	
+
+
+	//window.alert("cView_asciidocAutoDoc: Work in progress");
+	        
+	
+}
+
+function cView_documentElementHiearchy2(view, viewRepresentation, hierarchyLevel) {
+	
+	hierarchyLevel++;
+	var docString = "";
+	
+	
+	// get hold of the referenced view object
+	var refViewID = viewRepresentation.prop("drill down");
+	if (!refViewID) {
+		window.alert("Problem: Missing property 'drill down' for element with name '" + viewRepresentation.name + "'. Exiting");
+		exit();
+	}
+	var e = cModel_GetViewWithId(refViewID);
+	if (!e) {
+		window.alert("Error: Failed to get view for element with name '" +  viewRepresentation.name + "'. Please check 'drill down' value = " + refViewID );
+		exit();
+	}	
+
+
+	if (e.type == "junction")
+		return "";
+
+
+	// element chapter caption
+
+	var headerString = "";
+	var i;
+	for (i = 0; i < hierarchyLevel; i++) {
+		headerString += "=";
+	}
+	
+	docString = headerString + " ";
+	docString += e.name;
+	docString += "\n";
+	
+	// Element description
+	docString += "\n";
+	docString += e.documentation;
+	docString += "\n\n";
+
+
+
+
+
+
+		
+	var subElms = cElement_getSubElements(e);
+	
+	
+	if (subElms != null) {
+		subElms.each(function(se) {
+			docString += cView_documentElementHiearchy(view, se, hierarchyLevel);
+		});
+	}
+	
+	return docString;
+}
+
+
+function cView_getAutodocBooksInView(view) {
+	
+	var books = null;
+	var elms = cView_GetElementsInView(view);
+	
+	if (!elms)
+		lib_Error("Empty view?");
+		
+	
+	elms.each(function(e) {
+
+		var isBook = false;
+
+		if (e.prop(const_prop_dct_type) === const_conceptType_representation__book)
+			isBook = true;
+		
+		if (isBook) {
+			
+			if (books == null) {
+				books = $(e);
+			}
+			else {
+				books.add($(e));
+			}
+			
+		}
+
+
+	});
+	
+	
+	return books;
+	
+}
+
+function cView_asciidocAutoDoc2(view, sectionLevel) {
+
+	var docString = "";
+	
+	var books = cView_getAutodocBooksInView(view);	
+	if (!books)
+		lib_Error("No books in view; i.e. ..");
+	
+
+	books.each(function(book) {
+		docString += cBook_autodoc(book, sectionLevel);
+	});
+	
+	return docString;
+}
+
+
+function cView_AsciidocAutodoc(view, sectionLevel) {
+
+
+	// input: var view = CSelection_GetTheSelectedView();
+
+	var docString = "";
+	docString += cView_asciidocTemplateHeader(view);
+
+	// main chapter caption
+	docString += "\n";
+	
+	var headerString = "=";
+	var i;
+	for (i = 0; i < sectionLevel; i++) {
+		headerString += "=";
+	}
+	docString += headerString + " "; 
+	
+	docString += "Oversikt";
+	// docString += " - " + view.name;
+	docString += "\n";
+
+
+
+	// view description
+	docString += "\n";
+	docString += view.documentation;
+	docString += "\n\n";
+
+	// save image of the archi view to file
+	//.................................................cView_saveViewImageToFile(view);   erik: rememebr to set model property for antora path
+	
+	//if (cView_GetImagePath(view)) {
+		docString += "." + view.name;
+		
+		if (const_option_antora) {		
+			docString += "\nimage::" +  view.name + ".png" + "[alt=" + view.name + " image]";
+		}
+		
+		//cView_GetImagePath(view) + "[alt=" + view.name + " image]";
+				
+		// todo: ",link = ..." for link to published web view
+		docString += "\n\n"
+	//}	
+
+	/*
+	if (optionSectionLevel == 2) {
+		docString += "== "; 
+		docString += "Elementer";
+		docString += "\n";
+	}
+	*/
+
+	//topLevelElms = cView_getTopLevelElementsOf(view, elms, rels);
+	topLevelElms = cView_getTopLevelElementsOf(view);
+	
+	
+	topLevelElms.each(function(e) {
+		
+		docString += cView_documentElementHiearchy(view, e, sectionLevel);
+	});	
+	
+//cView_saveViewPageToFile(view, docString);
+	
+	//console.log(docString);
+	
+	return docString;
+	
+}
